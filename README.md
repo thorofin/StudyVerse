@@ -1,6 +1,6 @@
-# studyverse
+# study_verse
 
-Collaborative Study Room.
+A new Flutter project.
 
 ## Getting Started
 
