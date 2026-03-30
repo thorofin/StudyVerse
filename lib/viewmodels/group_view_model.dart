@@ -24,45 +24,101 @@ class GroupViewModel extends ChangeNotifier {
 
   // ── Session ───────────────────────────────────────────────
 
-  /// Appelé au SplashScreen — restaure la session et les groupes
   Future<bool> tryRestoreSession() async {
     final session = await AuthService.getSession();
     if (session == null) return false;
-    _currentUser = User(id: session['id']!, name: session['name']!);
+    _currentUser = User(
+      id:    session['id']!,
+      name:  session['name']!,
+      email: session['email'] ?? '',
+    );
     await consulterListeGroupes();
     return true;
   }
 
-  // ── Auth — login par nom ──────────────────────────────────
+  // ── Register ──────────────────────────────────────────────
 
-  Future<bool> login(String name) async {
+  Future<bool> register({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
     if (name.trim().isEmpty) {
-      _error = 'Le nom ne peut pas être vide.';
+      _error = 'Le nom est requis.';
       notifyListeners();
       return false;
     }
+    if (!_isValidEmail(email)) {
+      _error = 'Email invalide.';
+      notifyListeners();
+      return false;
+    }
+    if (password.length < 6) {
+      _error = 'Le mot de passe doit contenir au moins 6 caractères.';
+      notifyListeners();
+      return false;
+    }
+
     _loading = true;
     _error   = null;
     notifyListeners();
 
-    // Chercher si l'utilisateur existe déjà par son nom
-    User? existing = await DatabaseService.findUserByName(name.trim());
-
-    if (existing != null) {
-      // Utilisateur connu → restaurer son compte et ses groupes
-      _currentUser = existing;
-    } else {
-      // Nouvel utilisateur → créer un compte
-      final id = const Uuid().v4();
-      _currentUser = User(id: id, name: name.trim());
-      await DatabaseService.insertUser(_currentUser!);
+    // Vérifier si l'email existe déjà
+    final exists = await DatabaseService.emailExists(email);
+    if (exists) {
+      _error   = 'Cet email est déjà utilisé.';
+      _loading = false;
+      notifyListeners();
+      return false;
     }
 
-    // Sauvegarder la session
-    await AuthService.saveSession(
-        _currentUser!.id, _currentUser!.name);
+    final id = const Uuid().v4();
+    _currentUser = User(
+      id:    id,
+      name:  name.trim(),
+      email: email.trim().toLowerCase(),
+    );
 
-    // Charger les groupes de cet utilisateur
+    await DatabaseService.insertUser(_currentUser!, password: password);
+    await AuthService.saveSession(id, name.trim(), email.trim().toLowerCase());
+    await consulterListeGroupes();
+
+    _loading = false;
+    notifyListeners();
+    return true;
+  }
+
+  // ── Login ─────────────────────────────────────────────────
+
+  Future<bool> login({
+    required String email,
+    required String password,
+  }) async {
+    if (!_isValidEmail(email)) {
+      _error = 'Email invalide.';
+      notifyListeners();
+      return false;
+    }
+    if (password.isEmpty) {
+      _error = 'Le mot de passe est requis.';
+      notifyListeners();
+      return false;
+    }
+
+    _loading = true;
+    _error   = null;
+    notifyListeners();
+
+    final user = await DatabaseService.loginUser(email, password);
+    if (user == null) {
+      _error   = 'Email ou mot de passe incorrect.';
+      _loading = false;
+      notifyListeners();
+      return false;
+    }
+
+    _currentUser = user;
+    await AuthService.saveSession(user.id, user.name, user.email);
     await consulterListeGroupes();
 
     _loading = false;
@@ -77,7 +133,14 @@ class GroupViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Vérifier le rôle ─────────────────────────────────────
+  // ── Validation email ──────────────────────────────────────
+
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[\w.-]+@[\w.-]+\.\w{2,}$')
+        .hasMatch(email.trim());
+  }
+
+  // ── Rôle ─────────────────────────────────────────────────
 
   bool isAdmin(Group group) => group.adminId == _currentUser?.id;
 
@@ -107,7 +170,7 @@ class GroupViewModel extends ChangeNotifier {
     return code;
   }
 
-  // ── F01 : Créer un groupe (Admin) ─────────────────────────
+  // ── F01 : Créer un groupe ─────────────────────────────────
 
   Future<Group?> creerGroupe(String name) async {
     if (name.trim().isEmpty) {
@@ -120,7 +183,6 @@ class GroupViewModel extends ChangeNotifier {
       notifyListeners();
       return null;
     }
-
     _loading = true;
     _error   = null;
     notifyListeners();
@@ -133,8 +195,6 @@ class GroupViewModel extends ChangeNotifier {
     );
 
     await DatabaseService.insert(group);
-
-    // Créateur = membre ADMIN
     await DatabaseService.insertMember(GroupMember(
       groupId: group.id,
       userId:  _currentUser!.id,
@@ -148,7 +208,7 @@ class GroupViewModel extends ChangeNotifier {
     return group;
   }
 
-  // ── F01 : Valider code d'invitation ───────────────────────
+  // ── F01 : Valider code ────────────────────────────────────
 
   bool validerCodeInvitation(String code) {
     final clean = code.trim().toUpperCase();
@@ -165,7 +225,7 @@ class GroupViewModel extends ChangeNotifier {
     return true;
   }
 
-  // ── F01 : Rejoindre un groupe (Student) ───────────────────
+  // ── F01 : Rejoindre un groupe ─────────────────────────────
 
   Future<Group?> rejoindreGroupeViaCode(String code) async {
     if (!validerCodeInvitation(code)) return null;
@@ -194,7 +254,7 @@ class GroupViewModel extends ChangeNotifier {
       _groups.add(found);
       _successMessage = 'Vous avez rejoint "${found.name}" !';
     } else {
-      _error = 'Code invalide. Vérifiez avec votre professeur.';
+      _error = 'Code invalide.';
     }
 
     _loading = false;
@@ -202,20 +262,16 @@ class GroupViewModel extends ChangeNotifier {
     return found;
   }
 
-  // ── Supprimer un groupe (Admin) ───────────────────────────
+  // ── Supprimer groupe ──────────────────────────────────────
 
   Future<void> supprimerGroupe(Group group) async {
-    if (!isAdmin(group)) {
-      _error = 'Seul l\'admin peut supprimer ce groupe.';
-      notifyListeners();
-      return;
-    }
+    if (!isAdmin(group)) return;
     await DatabaseService.deleteGroup(group.id);
     _groups.removeWhere((g) => g.id == group.id);
     notifyListeners();
   }
 
-  // ── Quitter un groupe (Student) ───────────────────────────
+  // ── Quitter groupe ────────────────────────────────────────
 
   Future<void> quitterGroupe(Group group) async {
     if (_currentUser == null) return;
@@ -224,7 +280,7 @@ class GroupViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Membres d'un groupe ───────────────────────────────────
+  // ── Membres ───────────────────────────────────────────────
 
   Future<List<User>> getMembersWithDetails(String groupId) async {
     return DatabaseService.getUsersByGroup(groupId);

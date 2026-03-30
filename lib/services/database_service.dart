@@ -15,92 +15,103 @@ class DatabaseService {
     return _db!;
   }
 
-  static Future<Database> _initDB() async {
-    final path = join(await getDatabasesPath(), 'studyverse.db');
-    return openDatabase(
-      path,
-      version: 3,
-      onCreate: (db, version) async {
-        await db.execute('''
-          CREATE TABLE users (
-            id   TEXT PRIMARY KEY,
-            name TEXT NOT NULL
-          )
-        ''');
-        await db.execute('''
-          CREATE TABLE groups (
-            id      TEXT PRIMARY KEY,
-            name    TEXT NOT NULL,
-            code    TEXT NOT NULL UNIQUE,
-            adminId TEXT NOT NULL
-          )
-        ''');
-        await db.execute('''
-          CREATE TABLE group_members (
-            groupId TEXT NOT NULL,
-            userId  TEXT NOT NULL,
-            role    TEXT NOT NULL DEFAULT 'student',
-            PRIMARY KEY (groupId, userId),
-            FOREIGN KEY (groupId) REFERENCES groups(id),
-            FOREIGN KEY (userId)  REFERENCES users(id)
-          )
-        ''');
-        await db.execute('''
-          CREATE TABLE messages (
-            id        TEXT    PRIMARY KEY,
-            groupId   TEXT    NOT NULL,
-            userId    TEXT    NOT NULL,
-            text      TEXT    NOT NULL,
-            timestamp INTEGER NOT NULL,
-            FOREIGN KEY (groupId) REFERENCES groups(id),
-            FOREIGN KEY (userId)  REFERENCES users(id)
-          )
-        ''');
-        await db.execute('''
-          CREATE TABLE resources (
-            id      TEXT PRIMARY KEY,
-            groupId TEXT NOT NULL,
-            title   TEXT NOT NULL,
-            url     TEXT NOT NULL,
-            FOREIGN KEY (groupId) REFERENCES groups(id)
-          )
-        ''');
-        await db.execute('''
-          CREATE TABLE meetings (
-            id      TEXT PRIMARY KEY,
-            groupId TEXT NOT NULL,
-            dateISO TEXT NOT NULL,
-            topic   TEXT NOT NULL,
-            FOREIGN KEY (groupId) REFERENCES groups(id)
-          )
-        ''');
-      },
-      onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 3) {
-          // Ajouter colonne role à group_members
-          try {
-            await db.execute(
-              'ALTER TABLE group_members ADD COLUMN role TEXT NOT NULL DEFAULT "student"',
-            );
-          } catch (_) {}
-          // Ajouter colonne adminId à groups
-          try {
-            await db.execute(
-              'ALTER TABLE groups ADD COLUMN adminId TEXT NOT NULL DEFAULT ""',
-            );
-          } catch (_) {}
-        }
-      },
-    );
-  }
-
+static Future<Database> _initDB() async {
+  final path = join(await getDatabasesPath(), 'studyverse.db');
+  return openDatabase(
+    path,
+    version: 4,
+    onCreate: (db, version) async {
+      await db.execute('''
+        CREATE TABLE users (
+          id       TEXT PRIMARY KEY,
+          name     TEXT NOT NULL,
+          email    TEXT NOT NULL UNIQUE,
+          password TEXT NOT NULL
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE groups (
+          id      TEXT PRIMARY KEY,
+          name    TEXT NOT NULL,
+          code    TEXT NOT NULL UNIQUE,
+          adminId TEXT NOT NULL
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE group_members (
+          groupId TEXT NOT NULL,
+          userId  TEXT NOT NULL,
+          role    TEXT NOT NULL DEFAULT 'student',
+          PRIMARY KEY (groupId, userId)
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE messages (
+          id        TEXT    PRIMARY KEY,
+          groupId   TEXT    NOT NULL,
+          userId    TEXT    NOT NULL,
+          text      TEXT    NOT NULL,
+          timestamp INTEGER NOT NULL
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE resources (
+          id      TEXT PRIMARY KEY,
+          groupId TEXT NOT NULL,
+          title   TEXT NOT NULL,
+          url     TEXT NOT NULL
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE meetings (
+          id      TEXT PRIMARY KEY,
+          groupId TEXT NOT NULL,
+          dateISO TEXT NOT NULL,
+          topic   TEXT NOT NULL
+        )
+      ''');
+    },
+    onUpgrade: (db, oldVersion, newVersion) async {
+      if (oldVersion < 4) {
+        try {
+          await db.execute(
+            'ALTER TABLE users ADD COLUMN email TEXT NOT NULL DEFAULT ""',
+          );
+        } catch (_) {}
+        try {
+          await db.execute(
+            'ALTER TABLE users ADD COLUMN password TEXT NOT NULL DEFAULT ""',
+          );
+        } catch (_) {}
+        try {
+          await db.execute(
+            'ALTER TABLE group_members ADD COLUMN role TEXT NOT NULL DEFAULT "student"',
+          );
+        } catch (_) {}
+        try {
+          await db.execute(
+            'ALTER TABLE groups ADD COLUMN adminId TEXT NOT NULL DEFAULT ""',
+          );
+        } catch (_) {}
+      }
+    },
+  );
+}
   // ── UserDao ───────────────────────────────────────────────
 
-  static Future<void> insertUser(User u) async {
-    final db = await database;
-    await db.insert('users', u.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace);
-  }
+static Future<void> insertUser(User u, {String password = ''}) async {
+  final db = await database;
+  await db.insert(
+    'users',
+    {
+      'id':       u.id,
+      'name':     u.name,
+      'email':    u.email,
+      'password': password,
+    },
+    conflictAlgorithm: ConflictAlgorithm.replace,
+  );
+}
 
   static Future<User?> getUserById(String id) async {
     final db   = await database;
@@ -118,7 +129,35 @@ class DatabaseService {
     );
     return maps.isEmpty ? null : User.fromMap(maps.first);
   }
+static Future<User?> findUserByEmail(String email) async {
+  final db   = await database;
+  final maps = await db.query(
+    'users',
+    where:     'email = ?',
+    whereArgs: [email.trim().toLowerCase()],
+  );
+  return maps.isEmpty ? null : User.fromMap(maps.first);
+}
 
+static Future<User?> loginUser(String email, String password) async {
+  final db   = await database;
+  final maps = await db.query(
+    'users',
+    where:     'email = ? AND password = ?',
+    whereArgs: [email.trim().toLowerCase(), password],
+  );
+  return maps.isEmpty ? null : User.fromMap(maps.first);
+}
+
+static Future<bool> emailExists(String email) async {
+  final db   = await database;
+  final maps = await db.query(
+    'users',
+    where:     'email = ?',
+    whereArgs: [email.trim().toLowerCase()],
+  );
+  return maps.isNotEmpty;
+}
   // ── GroupDao ──────────────────────────────────────────────
 
   static Future<void> insert(Group group) async {
