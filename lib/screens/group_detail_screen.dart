@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:async';
 import 'package:provider/provider.dart';
 import '../models/group.dart';
 import '../models/group_member.dart';
@@ -19,6 +20,17 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   List<GroupMember> _roles       = [];
   bool              _loading     = true;
   bool              _initialized = false;
+  StreamSubscription<List<GroupMember>>? _membersSub;
+
+  List<User> _buildDisplayMembers({
+    required List<GroupMember> roles,
+    required List<User> users,
+  }) {
+    final usersById = {for (final u in users) u.id: u};
+    return roles
+        .map((r) => usersById[r.userId] ?? User(id: r.userId, name: 'Membre'))
+        .toList();
+  }
 
   @override
   void didChangeDependencies() {
@@ -27,7 +39,32 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       _group       = ModalRoute.of(context)!.settings.arguments as Group;
       _initialized = true;
       _loadMembers();
+      _startMembersSubscription();
     }
+  }
+
+  void _startMembersSubscription() {
+    _membersSub?.cancel();
+    final vm = context.read<GroupViewModel>();
+    _membersSub = DatabaseService.watchMembersByGroup(_group.id).listen(
+      (roles) async {
+        final members = await vm.getMembersWithDetails(_group.id);
+        final displayMembers = _buildDisplayMembers(
+          roles: roles,
+          users: members,
+        );
+        if (!mounted) return;
+        setState(() {
+          _roles = roles;
+          _members = displayMembers;
+          _loading = false;
+        });
+      },
+      onError: (_) {
+        if (!mounted) return;
+        setState(() => _loading = false);
+      },
+    );
   }
 
   Future<void> _loadMembers() async {
@@ -35,16 +72,22 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final vm = context.read<GroupViewModel>();
     final members = await vm.getMembersWithDetails(_group.id);
     final roles   = await vm.getMembersRoles(_group.id);
+    final displayMembers = _buildDisplayMembers(
+      roles: roles,
+      users: members,
+    );
+    if (!mounted) return;
     setState(() {
-      _members = members;
+      _members = displayMembers;
       _roles   = roles;
       _loading = false;
     });
   }
 
-  MemberRole _getRoleOf(String userId) {
-    final r = _roles.where((r) => r.userId == userId).firstOrNull;
-    return r?.role ?? MemberRole.student;
+  @override
+  void dispose() {
+    _membersSub?.cancel();
+    super.dispose();
   }
 
   @override
@@ -225,7 +268,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 const Icon(Icons.people_outline, size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  'Membres (${_members.length})',
+                  'Membres (${_roles.length})',
                   style: Theme.of(context)
                       .textTheme
                       .titleMedium
@@ -242,17 +285,18 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 child: CircularProgressIndicator(),
               ),
             )
-                : _members.isEmpty
+                : _roles.isEmpty
                 ? Center(
                 child: Text('Aucun membre.',
                     style: TextStyle(color: cs.outline)))
                 : ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: _members.length,
+              itemCount: _roles.length,
               itemBuilder: (ctx, i) {
+                final roleEntry = _roles[i];
                 final member = _members[i];
-                final role   = _getRoleOf(member.id);
+                final role   = roleEntry.role;
                 final isMe   = member.id == current?.id;
                 return _MemberTile(
                   user:    member,

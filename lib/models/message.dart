@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 // timestamp = epoch Unix en millisecondes (INTEGER)
 class Message {
   final String id;        // TEXT PK
@@ -38,10 +40,22 @@ class Message {
   };
 
   factory Message.fromMap(Map<String, dynamic> m) => Message(
-    id:        m['id']        as String,
-    groupId:   m['groupId']   as String,
-    userId:    m['userId']    as String,
-    text:      m['text']      as String,
-    timestamp: m['timestamp'] as int,
+    id: m['id'] as String,
+    groupId: m['groupId'] as String,
+    userId: m['userId'] as String,
+    text: m['text'] as String,
+    timestamp: _parseTimestamp(m['timestamp']),
   );
+
+  static int _parseTimestamp(dynamic raw) {
+    if (raw is int) return raw;
+    if (raw is num) return raw.toInt();
+    if (raw is Timestamp) return raw.millisecondsSinceEpoch;
+    if (raw is DateTime) return raw.millisecondsSinceEpoch;
+    if (raw is String) {
+      final parsed = int.tryParse(raw);
+      if (parsed != null) return parsed;
+    }
+    throw FormatException('Invalid message timestamp: $raw');
+  }
 }

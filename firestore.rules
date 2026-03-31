@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // This app currently uses a custom local session and not Firebase Auth.
+    // Keep access open so all members can read/write shared class data.
+    // IMPORTANT: migrate to Firebase Auth and tighten these rules for production security.
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
