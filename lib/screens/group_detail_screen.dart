@@ -28,7 +28,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }) {
     final usersById = {for (final u in users) u.id: u};
     return roles
-        .map((r) => usersById[r.userId] ?? User(id: r.userId, name: 'Membre'))
+      .map((r) =>
+        usersById[r.userId] ?? User(id: r.userId, name: 'Membre', email: ''))
         .toList();
   }
 

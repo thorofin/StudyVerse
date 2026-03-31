@@ -153,7 +153,7 @@ class DatabaseService {
       if (u != null) {
         users.add(u);
       } else {
-        users.add(User(id: m.userId, name: 'Membre'));
+        users.add(User(id: m.userId, name: 'Membre', email: ''));
       }
     }
 
