@@ -8,6 +8,7 @@ import 'screens/auth_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/group_detail_screen.dart';
 import 'screens/chat_screen.dart';
+import 'screens/ai_assistant_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,6 +44,7 @@ class StudyVerseApp extends StatelessWidget {
         '/home':         (_) => const HomeScreen(),
         '/group-detail': (_) => const GroupDetailScreen(),
         '/chat':         (_) => const ChatScreen(),
+        '/resources':    (_) => const AIAssistantScreen(),
       },
     );
   }
