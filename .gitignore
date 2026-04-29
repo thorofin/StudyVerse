@@ -48,3 +48,9 @@ app.*.map.json
 backend/uploads/
 backend/chroma_db/
 backend/__pycache__/
+
+# Python venv
+backend/venv/
+
+# Flask logs
+backend/*.log
