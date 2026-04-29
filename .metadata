@@ -21,6 +21,7 @@ migration:
     - platform: ios
       create_revision: 582a0e7c5581dc0ca5f7bfd8662bb8db6f59d536
       base_revision: 582a0e7c5581dc0ca5f7bfd8662bb8db6f59d536
+<<<<<<< HEAD
     - platform: linux
       create_revision: 582a0e7c5581dc0ca5f7bfd8662bb8db6f59d536
       base_revision: 582a0e7c5581dc0ca5f7bfd8662bb8db6f59d536
@@ -33,6 +34,8 @@ migration:
     - platform: windows
       create_revision: 582a0e7c5581dc0ca5f7bfd8662bb8db6f59d536
       base_revision: 582a0e7c5581dc0ca5f7bfd8662bb8db6f59d536
+=======
+>>>>>>> origin/Hirri
 
   # User provided section
 

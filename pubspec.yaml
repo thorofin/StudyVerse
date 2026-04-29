@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 name: studyverse
 description: "Collaborative Study Room."
 # The following line prevents the package from being accidentally published to
@@ -87,3 +88,64 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+=======
+# name: study_verse
+# description: "A new Flutter project."
+# publish_to: 'none'
+# version: 1.0.0+1
+
+# environment:
+#   sdk: '>=3.11.0 <4.0.0'
+
+# dependencies:
+#   flutter:
+#     sdk: flutter
+#   cupertino_icons: ^1.0.8
+#   provider: ^6.1.2
+#   sqflite: ^2.3.0
+#   path_provider: ^2.1.2
+#   path: ^1.9.0
+#   shared_preferences: ^2.2.3
+#   uuid: ^4.4.0
+
+# dev_dependencies:
+#   flutter_test:
+#     sdk: flutter
+#   flutter_lints: ^6.0.0
+
+# flutter:
+#   uses-material-design: true
+
+
+
+name: study_verse
+description: "A new Flutter project."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.11.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.1
+  http_parser: ^4.0.2
+  file_picker: ^8.0.6
+  url_launcher: ^6.3.0
+  open_file: ^3.5.10
+  cupertino_icons: ^1.0.8
+  provider: ^6.1.2
+  firebase_core: ^3.13.0
+  cloud_firestore: ^5.6.7
+  shared_preferences: ^2.2.3
+  uuid: ^4.4.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+>>>>>>> origin/Hirri
