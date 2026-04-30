@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart';
 import '../models/group.dart';
 import '../models/resource.dart';
 import '../viewmodels/resource_view_model.dart';
+import '../widgets/backend_status_banner.dart';
 
 class AIAssistantScreen extends StatefulWidget {
   const AIAssistantScreen({super.key});
@@ -312,14 +313,26 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
 
   // Chat area
   Widget _buildChat(ResourceViewModel vm) {
-    if (vm.messages.isEmpty) return _emptyState();
-    return ListView.builder(
-      controller: _scrollCtrl,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      itemCount: vm.messages.length,
-      itemBuilder: (_, i) => _Bubble(msg: vm.messages[i]),
+    return Column(
+      children: [
+        if (!vm.backendReady)
+          BackendStatusBanner(
+            onReady: () => vm.loadResources(),
+          ),
+        Expanded(
+          child: vm.messages.isEmpty
+              ? _emptyState()
+              : ListView.builder(
+            controller: _scrollCtrl,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            itemCount: vm.messages.length,
+            itemBuilder: (_, i) => _Bubble(msg: vm.messages[i]),
+          ),
+        ),
+      ],
     );
   }
+
 
   Widget _emptyState() {
     return Center(
